@@ -27,7 +27,8 @@ OPTIONAL: Road Trip Overhaul - Vehicle Tuning
   A separate data mod that calibrates weight, drag, engine output and tyre
   grip of the Road Trip cars to their real-world acceleration and top speed.
   The plugin and the mod work on their own or together.
-  https://github.com/PicSoul/road-trip-overhaul-vehicles
+  Steam Workshop: https://steamcommunity.com/sharedfiles/filedetails/?id=3812313188
+  GitHub:         https://github.com/PicSoul/road-trip-overhaul-vehicles
 
 
 INSTALL

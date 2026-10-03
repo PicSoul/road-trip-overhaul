@@ -11,7 +11,10 @@ Trucks are not affected unless you set `vehicles=all`. Nothing in the game's fil
 
 ## Optional: Road Trip Overhaul - Vehicle Tuning
 
-A separate data mod that calibrates weight, drag, engine output and tyre grip of the Road Trip cars to their real-world acceleration and top speed: [road-trip-overhaul-vehicles](https://github.com/PicSoul/road-trip-overhaul-vehicles). The plugin and the mod each work on their own, or together.
+A separate data mod that calibrates weight, drag, engine output and tyre grip of the Road Trip cars to their real-world acceleration and top speed. The plugin and the mod each work on their own, or together.
+
+- **[Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3812313188)** (subscribe, then enable it in the in-game Mod Manager)
+- [GitHub](https://github.com/PicSoul/road-trip-overhaul-vehicles) (source and manual download)
 
 ## Install
 

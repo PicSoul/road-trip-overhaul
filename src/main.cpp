@@ -47,7 +47,7 @@ struct Config {
     int maxSkipPower = 1;            // most gears one upshift may jump while on the throttle (above light_throttle)
     int maxSkipLight = 2;            // ... at light throttle or after lifting off
     int carOnly = 1;                 // 1 = only in car mode (Road Trip cars), 0 = every vehicle
-    int toggleVk = VK_SCROLL;        // key that switches the plugin on/off in game (0 = no key)
+    int toggleVk = VK_INSERT;        // key that switches the plugin on/off in game (0 = no key)
     int fourWd = 1;                  // real 2H/4H on 4x4 cars (car mode)
     int lockDiffs = 1;               // 2H/4H cars: differentials always locked (V only switches 2H/4H)
     float gripGrass = 0.7f;          // car mode: tyre grip on grass (x the game's value)
@@ -68,7 +68,7 @@ static const char kDefaultIni[] =
     "; which vehicles it works on: car = only when driving a car (Road Trip), all = cars and trucks\n"
     "vehicles=car\n"
     "; key that switches the plugin on and off while you drive (a beep tells you which):\n"
-    ";   a key name, optionally with ctrl+ / shift+ / alt+ in front, e.g. scrolllock, pause, ctrl+shift+g, alt+f9\n"
+    ";   a key name, optionally with ctrl+ / shift+ / alt+ in front, e.g. insert, scrolllock, pause, ctrl+shift+g, alt+f9\n"
     ";   (letters, digits, f1-f24, numpad0-9, insert, delete, home, end, pageup, pagedown); none = no key\n"
     "toggle_key=scrolllock\n"
     "; 4x4 cars (car mode): 1 = the diff lock key (V) switches real 2H / 4H - rear-wheel drive normally, front axle\n"
@@ -217,7 +217,7 @@ static std::string LoadConfig(const std::string& path) {
     GetPrivateProfileStringA("road_trip_overhaul", "vehicles", "car", vehicles, sizeof(vehicles), ini);
     g_cfg.carOnly = _stricmp(vehicles, "all") != 0;
     char key[64];
-    GetPrivateProfileStringA("road_trip_overhaul", "toggle_key", "scrolllock", key, sizeof(key), ini);
+    GetPrivateProfileStringA("road_trip_overhaul", "toggle_key", "insert", key, sizeof(key), ini);
     if (!ParseHotkey(key, g_cfg.toggleVk, g_cfg.toggleMods)) {
         note += std::string(note.empty() ? "" : "; ") + "toggle_key '" + key + "' not recognised - no toggle key";
         g_cfg.toggleVk = 0, g_cfg.toggleMods = 0;

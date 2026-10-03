@@ -50,7 +50,7 @@ switch to 4H by itself.
 
 IN GAME
 -------
-  Scroll Lock   switches the plugin on / off while you drive (a beep tells
+  Insert        switches the plugin on / off while you drive (a beep tells
                 you which). Handy to compare with the game's own behaviour.
   V             (the diff lock key) 2H / 4H on 4x4 cars.
 
@@ -64,9 +64,10 @@ setting is explained in the file itself. The main ones:
 
   enabled=1            1 = on, 0 = off
   vehicles=car         car = only when driving a car, all = trucks too
-  toggle_key=scrolllock
-                       key to switch the plugin on / off, e.g. pause,
-                       ctrl+shift+g, alt+f9; none = no key
+  toggle_key=insert
+                       key to switch the plugin on / off, e.g.
+                       scrolllock, pause, ctrl+shift+g, alt+f9;
+                       none = no key
   four_wd=1            1 = V switches real 2H / 4H on 4x4 cars
   lock_diffs=1         1 = differentials always locked (2H and 4H),
                        0 = locked only in 4H

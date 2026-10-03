@@ -25,7 +25,7 @@ Tip: turn off the game's *automatic differential lock* option, or it may switch 
 
 | Key | Action |
 |---|---|
-| Scroll Lock | Plugin on / off while you drive (a beep tells you which). Configurable with `toggle_key`. |
+| Insert | Plugin on / off while you drive (a beep tells you which). Configurable with `toggle_key`. |
 | V (diff lock) | 2H / 4H on 4x4 cars |
 
 ## Settings
@@ -36,7 +36,7 @@ Tip: turn off the game's *automatic differential lock* option, or it may switch 
 |---|---|---|
 | `enabled` | `1` | 1 = on, 0 = off |
 | `vehicles` | `car` | `car` = only when driving a car, `all` = trucks too |
-| `toggle_key` | `scrolllock` | key to switch on / off, e.g. `pause`, `ctrl+shift+g`, `alt+f9`; `none` = no key |
+| `toggle_key` | `insert` | key to switch on / off, e.g. `scrolllock`, `pause`, `ctrl+shift+g`, `alt+f9`; `none` = no key |
 | `four_wd` | `1` | V switches real 2H / 4H on 4x4 cars |
 | `lock_diffs` | `1` | differentials always locked (1) or only in 4H (0) |
 | `grip_grass` / `grip_dirt` / `grip_road` | `0.7` / `0.9` / `1.0` | tyre grip per surface as a multiple of the game's grip (cars only) |

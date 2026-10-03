@@ -15,6 +15,9 @@ Makes the cars of ATS's Road Trip mode drive more like real cars:
   light and the Bronco's 4x4 lever follow it.
 - Tyre grip depends on the surface: grass is slippery, dirt and gravel a bit
   less grippy than pavement.
+- A parking brake that holds. The game's car parking brake is so weak that
+  you can drive off with it on. It now holds the rear wheels properly (also
+  handy as a drift aid), or all four wheels like a truck's if you prefer.
 - Keeps the game's own "adaptive automatic transmission" mode working in cars
   (upshifts when you lift off), and gives your own setting back in trucks.
 
@@ -75,6 +78,12 @@ setting is explained in the file itself. The main ones:
   grip_grass=0.7       tyre grip on grass, dirt and pavement, as a
   grip_dirt=0.9        multiple of the game's own grip (1 = unchanged);
   grip_road=1.0        cars only
+  parking_brake=3      parking brake strength in cars, as a multiple of
+                       the game's (1 = unchanged)
+  parking_brake_all_wheels=0
+                       0 = rear wheels, like a real handbrake;
+                       1 = all four wheels, like a truck's (cars cannot
+                       be driven off with it on, even in 4H)
   four_wd_include=     vehicle ids that always get 2H / 4H (mod cars)
   four_wd_exclude=     vehicle ids that never do
   game_adaptive_mode=10
@@ -90,9 +99,10 @@ min_gear_time, max_upshift_power, max_upshift_light) is described in the ini.
 MOD VEHICLES
 ------------
 Shifting and surface grip work on any car, including mod cars. 2H / 4H works
-on cars whose data drives both axles. Built in: the LORD G350 pickup mod
-(vehicle.ford.350c), whose data is rear-wheel drive. Other mod cars can be
-added with four_wd_include (the vehicle id is in the log with log=1).
+on cars whose data drives both axles. Built in: the LORD G350
+(vehicle.ford.350c) and RVM (vehicle.ram.3500c) pickup mods by Jon Ruda,
+whose data is rear-wheel drive. Other mod cars can be added with
+four_wd_include (the vehicle id is in the log with log=1).
 
 
 AFTER A GAME UPDATE

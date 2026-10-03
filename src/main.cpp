@@ -56,6 +56,8 @@ struct Config {
     char fourWdInclude[512] = "";    // vehicle ids that always get 2H/4H
     char fourWdExclude[512] = "";    // vehicle ids that never do
     int toggleMods = 0;              // modifiers that must be held with it (kModCtrl | kModShift | kModAlt)
+    float parkStrength = 3.0f;       // car mode: parking brake torque as a multiple of the game's
+    int parkAllWheels = 0;           // car mode: 1 = parking brake on all wheels, 0 = the game's (rear) wheels
     int log = 0;                     // 0 off (no log file), 1 shifts and status
 };
 const int kModCtrl = 1, kModShift = 2, kModAlt = 4;
@@ -87,11 +89,18 @@ static const char kDefaultIni[] =
     "grip_dirt=0.9\n"
     "; paved roads and concrete\n"
     "grip_road=1.0\n"
+    "; parking brake while you drive a car, as a multiple of the game's (1 = unchanged). The game's car parking\n"
+    ";   brake only holds the rear wheels at about their normal braking force, so the engine drives through it.\n"
+    ";   Trucks are never affected.\n"
+    "parking_brake=3\n"
+    "; 0 = the parking brake holds the rear wheels, like a real car's handbrake (default; also works as a drift\n"
+    ";   aid); 1 = all four wheels, like a truck's - the car cannot be driven off with it on, even in 4H\n"
+    "parking_brake_all_wheels=0\n"
     "; vehicle ids that never get 2H/4H (e.g. a mod car that is really full-time AWD), comma separated. The id of\n"
     ";   the car you drive is in the log: 'vehicle configuration: ... (vehicle.ford.bronco_24)'\n"
     "four_wd_exclude=\n"
     "; vehicle ids that always get 2H/4H, even if their data drives only one axle. Built in already (no need to\n"
-    ";   add them): LORD G350 pickup mod (vehicle.ford.350c)\n"
+    ";   add them): LORD G350 pickup mod (vehicle.ford.350c), RVM pickup mod (vehicle.ram.3500c)\n"
     "four_wd_include=\n"
     "; throttle (0..1) at or below which the game's own upshift points are used\n"
     "light_throttle=0.25\n"
@@ -229,6 +238,8 @@ static std::string LoadConfig(const std::string& path) {
     g_cfg.gripRoad = Clamp(ReadFloat(ini, "grip_road", 1.0f), 0.1f, 2.0f);
     GetPrivateProfileStringA("road_trip_overhaul", "four_wd_include", "", g_cfg.fourWdInclude, sizeof(g_cfg.fourWdInclude), ini);
     GetPrivateProfileStringA("road_trip_overhaul", "four_wd_exclude", "", g_cfg.fourWdExclude, sizeof(g_cfg.fourWdExclude), ini);
+    g_cfg.parkStrength = Clamp(ReadFloat(ini, "parking_brake", 3.0f), 1.0f, 20.0f);
+    g_cfg.parkAllWheels = GetPrivateProfileIntA("road_trip_overhaul", "parking_brake_all_wheels", 0, ini);
     g_cfg.log = GetPrivateProfileIntA("road_trip_overhaul", "log", 0, ini);
     return note;
 }
@@ -670,6 +681,7 @@ struct BuiltinFourWd {
 };
 static const BuiltinFourWd kBuiltinFourWd[] = {
     {"vehicle.ford.350c", "LORD G350 pickup mod (Jon Ruda) - a 4x4 Super Duty, rear-wheel drive in its data"},
+    {"vehicle.ram.3500c", "RVM pickup mod (Jon Ruda) - a 4x4 RAM 3500, rear-wheel drive in its data"},
 };
 
 static const BuiltinFourWd* BuiltinFourWdFor(const char* id) {
@@ -1127,6 +1139,8 @@ static SCSAPI_VOID OnConfiguration(const scs_event_t, const void* const info, co
     }
 }
 
+static void ParkingBrakeFrame();
+
 static SCSAPI_VOID OnFrameStart(const scs_event_t, const void* const info, const scs_context_t) {
     auto fs = (const scs_telemetry_frame_start_t*)info;
     float dt = g_haveTime && fs->simulation_time > g_lastTime ? (float)(fs->simulation_time - g_lastTime) / 1e6f : 0.0f;
@@ -1205,6 +1219,7 @@ static SCSAPI_VOID OnFrameStart(const scs_event_t, const void* const info, const
     UpdateApplies();
     Update4wd();
     SurfaceGripFrame();
+    ParkingBrakeFrame();
     if (g_cfg.log >= 2) LogWheelSurfaces();
 }
 
@@ -1250,6 +1265,83 @@ static float* __fastcall HookShiftRange(void* self, float* out, int gear) {
     return r;
 }
 
+// ---------------------------------------------------------------- parking brake (car mode)
+// Once per physics step the game works out each wheel's brake torque: the wheel's maximum brake torque x the
+// larger of the service brake and the parking brake amount - the parking amount only on the wheels in a mask
+// (the rear axle). A car's wheel brakes are far weaker than a truck's, so the engine drives through the parking
+// brake. After the game's calculation the hook raises the parking brake torque of the player's car to
+// parking_brake x the wheel's maximum, on all wheels if parking_brake_all_wheels is set.
+static const char kWheelBrakesSig[] =
+    "RTOSIG:WheelBrakes=48 89 5C 24 18 48 89 74 24 20 57 48 83 EC 50 48 8B 81 ? ? ? ? 33 FF 48 8B D9 0F 29 74 24 "
+    "40 40 38 B9 ? ? ? ? 0F 84 ? ? ? ? 48 85 C0 0F 84 ? ? ? ? F3 0F 10 35 ? ? ? ? 8B F7 48 8B D6 48 8B CB E8 ? ? "
+    "? ? 48 8B 43 ? 0F 28 D0 80 B8 ? ? ? ? 00 74 05 0F 28 CE EB 08 F3 0F 10 88 ? ? ? ? 48 8D 88 ? ? ? ? F3 0F "
+    "11 4C 24 60 48 3B 71 10 0F 83 ? ? ? ? 48 8B 41 08 BA 01 00 00 00 8B CF 83 E1 1F D3 E2 F3 0F 10 04 B0 F3 0F "
+    "11 44 24 68 85 93 ? ? ? ? 74 15 0F 2F C8 48 8D 44 24 60 48 8D 4C 24 68 48 0F 46 C1 F3 0F 10 00 48 8D 8B ? "
+    "? ? ?";
+typedef void(__fastcall* WheelBrakes_t)(uintptr_t phys);
+typedef float(__fastcall* WheelMaxTorque_t)(uintptr_t phys, uint64_t wheel);
+static WheelBrakes_t OrigWheelBrakes;
+static WheelMaxTorque_t g_wheelMaxTorque;
+static uintptr_t g_parkTarget;
+static bool g_parkHooked;
+static uint32_t g_physWheels, g_physVehicle, g_vehParkFull, g_vehParkAmount, g_physParkMask, g_physBrakeOut;
+static volatile uintptr_t g_parkVehicle;   // the player's car while the feature applies (0 = off)
+
+// POD only (__try).
+static void RaiseParkingBrake(uintptr_t phys, uintptr_t vehicle) {
+    __try {
+        if (*(uintptr_t*)(phys + g_physVehicle) != vehicle) return;
+        float amount = *(uint8_t*)(vehicle + g_vehParkFull) ? 1.0f : *(float*)(vehicle + g_vehParkAmount);
+        if (!(amount > 0)) return;
+        uint64_t wheels = *(uint64_t*)(phys + g_physWheels);
+        float* torque = *(float**)(phys + g_physBrakeOut + 8);
+        uint64_t count = *(uint64_t*)(phys + g_physBrakeOut + 0x10);
+        uint32_t mask = *(uint32_t*)(phys + g_physParkMask);
+        if (!torque || wheels > 32 || count < wheels) return;
+        for (uint64_t i = 0; i < wheels; i++) {
+            if (!g_cfg.parkAllWheels && !(mask & (1u << i))) continue;
+            float t = g_wheelMaxTorque(phys, i) * amount * g_cfg.parkStrength;
+            if (torque[i] < t) torque[i] = t;
+        }
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+    }
+}
+
+static void __fastcall HookWheelBrakes(uintptr_t phys) {
+    OrigWheelBrakes(phys);
+    uintptr_t vehicle = g_parkVehicle;
+    if (vehicle && !g_passthrough) RaiseParkingBrake(phys, vehicle);
+}
+
+static bool FindWheelBrakes() {
+    uintptr_t fn = FindUnique(kWheelBrakesSig);
+    if (!fn) return false;
+    g_physWheels = *(const uint32_t*)(fn + 18);       // mov rax, [rcx+wheels]
+    g_physVehicle = *(const uint8_t*)(fn + 78);       // mov rax, [rbx+vehicle]
+    g_vehParkFull = *(const uint32_t*)(fn + 84);      // cmp byte ptr [rax+full], 0
+    g_vehParkAmount = *(const uint32_t*)(fn + 100);   // movss xmm1, [rax+amount]
+    g_physParkMask = *(const uint32_t*)(fn + 156);    // test [rbx+mask], edx
+    g_physBrakeOut = *(const uint32_t*)(fn + 186);    // lea rcx, [rbx+torques]  (array_t)
+    uintptr_t maxTorque = fn + 75 + *(const int32_t*)(fn + 71);   // call max_torque(phys, wheel)
+    if (g_physWheels >= 0x1000 || !g_physVehicle || g_vehParkFull >= 0x4000 || g_vehParkAmount >= 0x4000 ||
+        g_physParkMask >= 0x1000 || g_physBrakeOut >= 0x1000 || !InModule(maxTorque))
+        return false;
+    g_wheelMaxTorque = (WheelMaxTorque_t)maxTorque;
+    g_parkTarget = fn;
+    return true;
+}
+
+// Which car the parking brake change applies to (game thread, every frame).
+static void ParkingBrakeFrame() {
+    if (!g_parkHooked) return;
+    bool want = g_applies && g_mode == kModeCar && (g_cfg.parkStrength > 1.0f || g_cfg.parkAllWheels);
+    uintptr_t vehicle = want ? PlayerVehicle() : 0;
+    if (vehicle != g_parkVehicle)
+        Log("parking brake: %s", vehicle ? (g_cfg.parkAllWheels ? "car mode - stronger, all wheels" : "car mode - stronger, rear wheels")
+                                         : "the game's own");
+    g_parkVehicle = vehicle;
+}
+
 // ---------------------------------------------------------------- setup / shutdown
 
 static std::string g_dir;
@@ -1258,14 +1350,14 @@ static bool g_hooked;
 
 // True if the game function still jumps straight to our detour (see Service At Garage: another plugin that
 // hooked it later would be overwritten by MH_DisableHook).
-static bool StillOurs() {
+static bool StillOurs(uintptr_t target, void* detour) {
     __try {
-        const uint8_t* site = (const uint8_t*)g_target;
+        const uint8_t* site = (const uint8_t*)target;
         if (site[0] == 0xEB && site[1] == 0xF9) site -= 5;
         if (site[0] != 0xE9) return false;
         const uint8_t* relay = site + 5 + *(const int32_t*)(site + 1);
         static const uint8_t kAbs[6] = {0xFF, 0x25, 0, 0, 0, 0};
-        return memcmp(relay, kAbs, 6) == 0 && *(void* const*)(relay + 6) == (void*)HookShiftRange;
+        return memcmp(relay, kAbs, 6) == 0 && *(void* const*)(relay + 6) == detour;
     } __except (EXCEPTION_EXECUTE_HANDLER) {
         return false;
     }
@@ -1300,6 +1392,15 @@ SCSAPI_RESULT scs_telemetry_init(const scs_u32_t version, const scs_telemetry_in
         return SCS_RESULT_ok;
     }
     g_hooked = true;
+
+    // Parking brake (optional: without it only that feature is off).
+    if (g_cfg.enabled && (g_cfg.parkStrength > 1.0f || g_cfg.parkAllWheels)) {
+        g_parkHooked = FindWheelBrakes() &&
+                       MH_CreateHook((void*)g_parkTarget, (void*)HookWheelBrakes, (void**)&OrigWheelBrakes) == MH_OK &&
+                       MH_EnableHook((void*)g_parkTarget) == MH_OK;
+        Log("parking brake: wheel brake code %s (x%.1f, %s)", g_parkHooked ? "found" : "NOT found - parking brake unchanged",
+            (double)g_cfg.parkStrength, g_cfg.parkAllWheels ? "all wheels" : "rear wheels");
+    }
 
     g_gameLog = p->common.log;
     if (g_cfg.enabled && g_cfg.gameAdaptive > 0) {
@@ -1368,12 +1469,15 @@ SCSAPI_VOID scs_telemetry_shutdown(void) {
     SurfaceGripShutdown();
     if (g_hooked) {
         g_passthrough = true;
-        if (StillOurs() && MH_DisableHook((void*)g_target) == MH_OK) {
+        g_parkVehicle = 0;
+        bool ours = StillOurs(g_target, (void*)HookShiftRange) &&
+                    (!g_parkHooked || StillOurs(g_parkTarget, (void*)HookWheelBrakes));
+        if (ours && MH_DisableHook(MH_ALL_HOOKS) == MH_OK) {
             MH_Uninitialize();
         } else {
             // Another plugin hooked the function after us: leave ours in place (pass-through) and keep the DLL
             // loaded so neither jump ever points at freed code.
-            Log("shift code is hooked by another plugin on top of ours; leaving ours in place (pass-through)");
+            Log("game code is hooked by another plugin on top of ours; leaving ours in place (pass-through)");
             HMODULE pinned;
             GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN | GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS,
                                (LPCWSTR)HookShiftRange, &pinned);

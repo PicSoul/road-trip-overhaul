@@ -1,0 +1,9 @@
+/bin/
+/dist/
+*.log
+*.obj
+*.dll
+*.lib
+*.exp
+*.ini
+__pycache__/
